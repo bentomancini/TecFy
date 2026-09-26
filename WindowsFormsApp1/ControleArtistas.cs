@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -19,10 +20,9 @@ namespace WindowsFormsApp1
 
         private int _usuarioId;
 
-        private TextBox txtBuscaArtista;
-        private Button btnBuscar;
         private Button btnFavoritarSelecionado;
         private Button btnFavoritos;
+        private Panel _pnlTopo;
         private ListView lstArtistas;
         private ImageList _imagens;
 
@@ -36,53 +36,55 @@ namespace WindowsFormsApp1
         private Button btnFavorito;
         private SpotifyService.Artista _artistaAtual;
         private bool _exibindoDetalhe;
+        private int _versaoTopMusicas;
 
         private void Inicializar()
         {
             BackColor = Color.FromArgb(13, 7, 20);
             Font = new Font("Segoe UI", 9F);
 
-            // ---- Barra superior (busca + botoes) ----
-            var pnlTopo = new Panel
+            // A busca de artistas usa o campo principal do Form2.
+            _pnlTopo = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 44,
-                Padding = new Padding(6, 8, 6, 4),
-                BackColor = Color.FromArgb(20, 11, 30)
+                Height = 64,
+                BackColor = Tema.FundoPainel
             };
 
-            btnBuscar = NovoBotaoTopo("Buscar", Color.FromArgb(124, 58, 237), 86, BtnBuscar_Click);
-            btnFavoritarSelecionado = NovoBotaoTopo("♡ Favoritar", Color.FromArgb(45, 20, 65), 110, BtnFavoritarSelecionado_Click);
-            btnFavoritos = NovoBotaoTopo("Favoritos", Color.FromArgb(45, 20, 65), 96, BtnFavoritos_Click);
-
-            txtBuscaArtista = new TextBox
+            _pnlTopo.Controls.Add(new Label
             {
-                Location = new Point(6, 8),
-                Size = new Size(200, 26),
-                BackColor = Color.FromArgb(28, 16, 42),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F)
-            };
-            txtBuscaArtista.KeyDown += (s, e) =>
+                Text = "Artistas",
+                Location = new Point(12, 5),
+                Size = new Size(210, 30),
+                ForeColor = Tema.Texto,
+                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
+                BackColor = Color.Transparent
+            });
+            _pnlTopo.Controls.Add(new Label
             {
-                if (e.KeyCode == Keys.Enter)
-                    BuscarArtistas(txtBuscaArtista.Text.Trim());
-            };
+                Text = "Busque na barra acima ou explore seus favoritos",
+                Location = new Point(13, 37),
+                Size = new Size(365, 20),
+                AutoEllipsis = true,
+                ForeColor = Tema.TextoSecundario,
+                Font = new Font("Segoe UI", 9F),
+                BackColor = Color.Transparent
+            });
 
-            pnlTopo.Controls.Add(txtBuscaArtista);
-            pnlTopo.Controls.Add(btnBuscar);
-            pnlTopo.Controls.Add(btnFavoritarSelecionado);
-            pnlTopo.Controls.Add(btnFavoritos);
+            btnFavoritarSelecionado = NovoBotaoTopo("♡ Favoritar", Tema.FundoCard, 108, BtnFavoritarSelecionado_Click);
+            btnFavoritos = NovoBotaoTopo("♥ Favoritos", Tema.FundoCard, 104, BtnFavoritos_Click);
+
+            _pnlTopo.Controls.Add(btnFavoritarSelecionado);
+            _pnlTopo.Controls.Add(btnFavoritos);
             ReposicionarBotoesTopo();
 
-            Controls.Add(pnlTopo);
             Resize += (s, e) => ReposicionarBotoesTopo();
 
             // ---- Lista de artistas ----
             _imagens = new ImageList
             {
                 ColorDepth = ColorDepth.Depth32Bit,
-                ImageSize = new Size(56, 56)
+                ImageSize = new Size(68, 68)
             };
 
             lstArtistas = new ListView
@@ -107,7 +109,14 @@ namespace WindowsFormsApp1
             Controls.Add(pnlDetalhe);
             pnlDetalhe.Visible = false;
 
-            Load += (s, e) => BuscarArtistas("Brasil");
+            // O DockStyle.Top deve vir depois dos paineis Fill para reservar espaco.
+            Controls.Add(_pnlTopo);
+
+            Load += (s, e) =>
+            {
+                if (!_exibindoDetalhe)
+                    BuscarArtistas("Brasil");
+            };
         }
 
         private Button NovoBotaoTopo(string texto, Color cor, int largura, EventHandler clique)
@@ -117,9 +126,10 @@ namespace WindowsFormsApp1
                 Text = texto,
                 Size = new Size(largura, 26),
                 BackColor = cor,
-                ForeColor = Color.White,
+                ForeColor = Tema.Texto,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
             botao.FlatAppearance.BorderSize = 0;
             Tema.Arredondar(botao, 13);
@@ -129,15 +139,12 @@ namespace WindowsFormsApp1
 
         private void ReposicionarBotoesTopo()
         {
-            // Recalcula posicoes dos botoes/txtBusca da barra quando o tamanho muda.
-            if (btnBuscar == null || btnFavoritos == null || btnFavoritarSelecionado == null)
+            if (btnFavoritos == null || btnFavoritarSelecionado == null)
                 return;
 
-            int direita = this.Width - 6;
-            btnFavoritos.Location = new Point(direita - btnFavoritos.Width, 8);
-            btnFavoritarSelecionado.Location = new Point(btnFavoritos.Left - btnFavoritarSelecionado.Width - 4, 8);
-            btnBuscar.Location = new Point(btnFavoritarSelecionado.Left - btnBuscar.Width - 4, 8);
-            txtBuscaArtista.Width = Math.Max(60, btnBuscar.Left - 16);
+            int direita = Width - 12;
+            btnFavoritos.Location = new Point(direita - btnFavoritos.Width, 16);
+            btnFavoritarSelecionado.Location = new Point(btnFavoritos.Left - btnFavoritarSelecionado.Width - 8, 16);
         }
 
         private void CriarPainelDetalhe()
@@ -153,26 +160,34 @@ namespace WindowsFormsApp1
             var pnlTopoDetalhe = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 40,
-                Padding = new Padding(10, 6, 10, 4),
-                BackColor = Color.FromArgb(20, 11, 30)
+                Height = 50,
+                BackColor = Tema.FundoPainel
             };
 
             btnVoltar = new Button
             {
                 Text = "< Voltar",
-                Location = new Point(10, 6),
-                Size = new Size(100, 28),
-                BackColor = Color.FromArgb(45, 20, 65),
-                ForeColor = Color.White,
+                Location = new Point(10, 8),
+                Size = new Size(110, 32),
+                BackColor = Tema.FundoCard,
+                ForeColor = Tema.Texto,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
             btnVoltar.FlatAppearance.BorderSize = 0;
-            Tema.Arredondar(btnVoltar, 14);
+            Tema.Arredondar(btnVoltar, 12);
             btnVoltar.Click += (s, e) => MostrarLista();
             pnlTopoDetalhe.Controls.Add(btnVoltar);
-            pnlDetalhe.Controls.Add(pnlTopoDetalhe);
+            pnlTopoDetalhe.Controls.Add(new Label
+            {
+                Text = "PERFIL DO ARTISTA",
+                Location = new Point(136, 15),
+                Size = new Size(190, 22),
+                ForeColor = Tema.Destaque,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                BackColor = Color.Transparent
+            });
 
             // Usa um TableLayoutPanel (grid 2 colunas) para separar o card do artista
             // (esquerda) das musicas (direita), sem sobreposicao por dock.
@@ -183,7 +198,7 @@ namespace WindowsFormsApp1
                 RowCount = 1,
                 BackColor = Color.FromArgb(20, 11, 30)
             };
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 270));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240));
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -191,48 +206,51 @@ namespace WindowsFormsApp1
             var pnlEsquerda = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(28, 16, 42)
+                BackColor = Tema.FundoElevado
             };
+            pnlEsquerda.Resize += (s, e) => Tema.Arredondar(pnlEsquerda, 16);
 
             picArtista = new PictureBox
             {
-                Location = new Point(60, 45),
-                Size = new Size(150, 150),
+                Location = new Point(34, 14),
+                Size = new Size(172, 172),
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.FromArgb(28, 16, 42)
+                BackColor = Tema.FundoCard
             };
+            Tema.Arredondar(picArtista, 16);
             pnlEsquerda.Controls.Add(picArtista);
 
             lblNomeArtista = new Label
             {
-                Location = new Point(5, 205),
-                Size = new Size(260, 26),
+                Location = new Point(8, 193),
+                Size = new Size(224, 36),
                 TextAlign = ContentAlignment.MiddleCenter,
                 AutoEllipsis = true,
-                ForeColor = Color.White,
+                ForeColor = Tema.Texto,
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                BackColor = Color.FromArgb(28, 16, 42)
+                BackColor = Color.Transparent
             };
             pnlEsquerda.Controls.Add(lblNomeArtista);
 
             lblInfoArtista = new Label
             {
-                Location = new Point(5, 234),
-                Size = new Size(260, 40),
+                Location = new Point(8, 230),
+                Size = new Size(224, 42),
                 TextAlign = ContentAlignment.MiddleCenter,
                 AutoEllipsis = true,
-                ForeColor = Color.Silver,
+                ForeColor = Tema.TextoSecundario,
                 Font = new Font("Segoe UI", 10F),
-                BackColor = Color.FromArgb(28, 16, 42)
+                BackColor = Color.Transparent
             };
             pnlEsquerda.Controls.Add(lblInfoArtista);
 
             btnFavorito = new Button
             {
-                Location = new Point(52, 280),
-                Size = new Size(166, 34),
+                Location = new Point(34, 276),
+                Size = new Size(172, 32),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
             btnFavorito.FlatAppearance.BorderSize = 0;
             Tema.Arredondar(btnFavorito, 15);
@@ -241,7 +259,7 @@ namespace WindowsFormsApp1
 
             grid.Controls.Add(pnlEsquerda, 0, 0);
 
-            // Coluna 1: as 5 musicas.
+            // Coluna 1: as principais musicas do artista.
             var pnlDireita = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -252,10 +270,10 @@ namespace WindowsFormsApp1
             {
                 Dock = DockStyle.Top,
                 Height = 30,
-                Text = "10 musicas mais famosas:",
+                Text = "  Músicas em destaque",
                 TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Color.FromArgb(168, 85, 247),
-                Font = new Font("Segoe UI", 12.5F, FontStyle.Bold),
+                ForeColor = Tema.Texto,
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
                 BackColor = Color.FromArgb(20, 11, 30)
             };
 
@@ -264,7 +282,8 @@ namespace WindowsFormsApp1
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                AutoScroll = false,
+                AutoScroll = true,
+                Padding = new Padding(8, 8, 8, 8),
                 BackColor = Color.FromArgb(20, 11, 30)
             };
 
@@ -273,7 +292,8 @@ namespace WindowsFormsApp1
             {
                 if (flpTopMusicas.ClientSize.Width <= 0)
                     return;
-                int larguraNova = Math.Max(280, flpTopMusicas.ClientSize.Width - 12);
+                int larguraNova = Math.Max(160, flpTopMusicas.ClientSize.Width
+                    - flpTopMusicas.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - 4);
                 foreach (Control controle in flpTopMusicas.Controls)
                 {
                     if (controle.Width != larguraNova)
@@ -290,16 +310,31 @@ namespace WindowsFormsApp1
             grid.Controls.Add(pnlDireita, 1, 0);
 
             pnlDetalhe.Controls.Add(grid);
+            // O DockStyle.Top deve ser adicionado depois do Fill para reservar a barra.
+            pnlDetalhe.Controls.Add(pnlTopoDetalhe);
         }
 
         private void MostrarLista()
         {
+            _versaoTopMusicas++;
             _exibindoDetalhe = false;
+            _pnlTopo.Visible = true;
             lstArtistas.Visible = true;
             pnlDetalhe.Visible = false;
         }
 
         // Permite abrir o detalhe de um artista diretamente (ex.: vindo da home).
+        public void ExibirLista()
+        {
+            MostrarLista();
+        }
+
+        public void Pesquisar(string termo)
+        {
+            MostrarLista();
+            BuscarArtistas(string.IsNullOrWhiteSpace(termo) ? "Brasil" : termo.Trim());
+        }
+
         public void ExibirArtista(SpotifyService.Artista artista)
         {
             if (artista == null)
@@ -310,6 +345,7 @@ namespace WindowsFormsApp1
         private void MostrarDetalhe(SpotifyService.Artista artista)
         {
             _exibindoDetalhe = true;
+            _pnlTopo.Visible = false;
             lstArtistas.Visible = false;
             pnlDetalhe.Visible = true;
 
@@ -329,24 +365,12 @@ namespace WindowsFormsApp1
                     !string.IsNullOrWhiteSpace(seguidores) ? seguidores : ""
                 }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
-            // Foto do artista.
+            // Carregamento assincrono: nao bloqueia a exibicao das musicas.
+            picArtista.ImageLocation = null;
             picArtista.Image = null;
             if (!string.IsNullOrWhiteSpace(artista.ImagemUrl))
             {
-                try
-                {
-                    using (var client = new System.Net.Http.HttpClient())
-                    {
-                        var dados = client.GetByteArrayAsync(artista.ImagemUrl).Result;
-                        using (var ms = new System.IO.MemoryStream(dados))
-                        {
-                            picArtista.Image = new Bitmap(Image.FromStream(ms));
-                        }
-                    }
-                }
-                catch
-                {
-                }
+                try { picArtista.LoadAsync(artista.ImagemUrl); } catch { }
             }
 
             CarregarTopMusicas(artista.Nome);
@@ -356,16 +380,31 @@ namespace WindowsFormsApp1
 
         private async void CarregarTopMusicas(string nomeArtista)
         {
+            int versao = ++_versaoTopMusicas;
             flpTopMusicas.Controls.Clear();
+            flpTopMusicas.Controls.Add(new Label
+            {
+                Text = "Carregando músicas de " + nomeArtista + "...",
+                ForeColor = Tema.TextoSecundario,
+                AutoSize = true,
+                Margin = new Padding(8, 12, 0, 0)
+            });
 
-            var top = await SpotifyService.BuscarTopMusicasArtistaAsync(nomeArtista, 10);
+            List<SpotifyService.Faixa> top = null;
+            try { top = await SpotifyService.BuscarTopMusicasArtistaAsync(nomeArtista, 10); }
+            catch { }
+
+            if (IsDisposed || versao != _versaoTopMusicas)
+                return;
+
+            flpTopMusicas.Controls.Clear();
 
             if (top == null || top.Count == 0)
             {
                 var msg = new Label
                 {
-                    Text = "Nao foi possivel carregar as musicas deste artista na iTunes.",
-                    ForeColor = Color.Silver,
+                    Text = "Nenhuma música encontrada para este artista agora.",
+                    ForeColor = Tema.TextoSecundario,
                     AutoSize = true,
                     Padding = new Padding(0, 6, 0, 0)
                 };
@@ -377,9 +416,7 @@ namespace WindowsFormsApp1
             int numero = 1;
             foreach (var faixa in top)
             {
-                var faixaAtual = faixa;
                 var item = CriarLinhaMusica(numero, faixa);
-                item.Click += (s, e) => MusicaSolicitada?.Invoke(faixaAtual);
                 flpTopMusicas.Controls.Add(item);
                 numero++;
             }
@@ -389,91 +426,105 @@ namespace WindowsFormsApp1
 
         private Control CriarLinhaMusica(int numero, SpotifyService.Faixa faixa)
         {
-            int larguraLinha = Math.Max(280, (flpTopMusicas != null ? flpTopMusicas.ClientSize.Width : 480) - 12);
+            int larguraLinha = Math.Max(160, flpTopMusicas.ClientSize.Width
+                - flpTopMusicas.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - 4);
 
-var pnl = new Panel
+            var pnl = new Panel
             {
-                Size = new Size(larguraLinha, 60),
+                Size = new Size(larguraLinha, 70),
+                BackColor = Tema.FundoElevado,
+                Margin = new Padding(0, 0, 0, 8),
+                Cursor = Cursors.Hand
+            };
+            Tema.Arredondar(pnl, 12);
+
+            var lblNumero = new Label
+            {
+                Text = numero.ToString("00"),
+                Location = new Point(9, 24),
+                Size = new Size(26, 22),
+                ForeColor = Tema.Destaque,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
+            pnl.Controls.Add(lblNumero);
 
-            var inicio = new Point(0, 6);
-                var botoes = new PictureBox
-                {
-                    Text = "",
-                    Size = new Size(46, 46),
-                    Location = inicio,
-                    Cursor = Cursors.Hand,
-                    BackColor = Color.FromArgb(124, 58, 237),
-                    Image = DesenharPlay(),
-                    SizeMode = PictureBoxSizeMode.CenterImage
-                };
-                Tema.Arredondar(botoes, 23);
-                pnl.Controls.Add(botoes);
-
-                var capa = new PictureBox
-                {
-                    Size = new Size(46, 46),
-                    Location = new Point(56, 6),
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    BackColor = Color.FromArgb(28, 16, 42)
-                };
-                Tema.Arredondar(capa, 23);
+            var capa = new PictureBox
+            {
+                Size = new Size(54, 54),
+                Location = new Point(38, 8),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Tema.FundoCard,
+                Cursor = Cursors.Hand
+            };
+            Tema.Arredondar(capa, 9);
             if (!string.IsNullOrWhiteSpace(faixa.ImagemUrl))
             {
-                try
-                {
-                    using (var client = new System.Net.Http.HttpClient())
-                    {
-                        var dados = client.GetByteArrayAsync(faixa.ImagemUrl).Result;
-using (var ms = new System.IO.MemoryStream(dados))
-                            {
-                                capa.Image = new Bitmap(Image.FromStream(ms));
-                            }
-                    }
-                }
-                catch
-                {
-                }
+                try { capa.LoadAsync(faixa.ImagemUrl); } catch { }
             }
             pnl.Controls.Add(capa);
 
             var duracao = new Label
             {
                 Text = FormatarDuracao(faixa.DuracaoSegundos),
-                Location = new Point(larguraLinha - 60, 18),
-                AutoSize = true,
-                ForeColor = Color.Silver,
-                Font = new Font("Segoe UI", 11F),
-                BackColor = Color.Transparent
+                Location = new Point(larguraLinha - 53, 25),
+                Size = new Size(48, 20),
+                TextAlign = ContentAlignment.MiddleRight,
+                ForeColor = Tema.TextoSecundario,
+                Font = new Font("Segoe UI", 9F),
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
             };
             pnl.Controls.Add(duracao);
 
-            var txt = new Label
+            var lblTitulo = new Label
             {
-                Text = numero + ".  " + faixa.Nome + "  -  " + faixa.Album,
-                Location = new Point(112, 15),
-                Size = new Size(larguraLinha - 112 - 65, 34),
+                Text = faixa.Nome ?? "",
+                Location = new Point(102, 13),
+                Size = new Size(Math.Max(55, larguraLinha - 165), 23),
                 AutoEllipsis = true,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 13F),
-                BackColor = Color.Transparent
+                ForeColor = Tema.Texto,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
             };
-            pnl.Controls.Add(txt);
+            pnl.Controls.Add(lblTitulo);
 
-            foreach (Control c in pnl.Controls)
+            var lblAlbum = new Label
             {
-                c.Click += (s, e) => MusicaSolicitada?.Invoke(faixa);
-            }
+                Text = faixa.Album ?? faixa.Artistas ?? "",
+                Location = new Point(102, 39),
+                Size = new Size(Math.Max(55, larguraLinha - 165), 19),
+                AutoEllipsis = true,
+                ForeColor = Tema.TextoSecundario,
+                Font = new Font("Segoe UI", 8.5F),
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+            pnl.Controls.Add(lblAlbum);
 
-            // Mantem a linha e as posicoes internas ajustadas ao largar/esticar.
+            pnl.Click += (s, e) => MusicaSolicitada?.Invoke(faixa);
+            foreach (Control c in pnl.Controls)
+                c.Click += (s, e) => MusicaSolicitada?.Invoke(faixa);
+
             pnl.Resize += (s, e) =>
             {
-                int larguraNova = pnl.Width;
-                duracao.Location = new Point(larguraNova - duracao.Width - 6, 18);
-                txt.Size = new Size(Math.Max(60, larguraNova - 112 - 65), 34);
+                duracao.Left = pnl.Width - duracao.Width - 6;
+                lblTitulo.Width = Math.Max(55, duracao.Left - lblTitulo.Left - 8);
+                lblAlbum.Width = lblTitulo.Width;
+                Tema.Arredondar(pnl, 12);
             };
+
+            foreach (Control alvo in new Control[] { pnl, lblNumero, capa, duracao, lblTitulo, lblAlbum })
+            {
+                alvo.MouseEnter += (s, e) => pnl.BackColor = Tema.FundoCard;
+                alvo.MouseLeave += (s, e) =>
+                {
+                    if (!pnl.ClientRectangle.Contains(pnl.PointToClient(Cursor.Position)))
+                        pnl.BackColor = Tema.FundoElevado;
+                };
+            }
 
             return pnl;
         }
@@ -507,25 +558,27 @@ using (var ms = new System.IO.MemoryStream(dados))
 
         private List<SpotifyService.Artista> _resultadosBusca = new List<SpotifyService.Artista>();
         private bool _carregando;
+        private int _versaoBusca;
 
-        private void BtnBuscar_Click(object sender, EventArgs e)
+        private async void AtualizarBotaoFavorito()
         {
-            BuscarArtistas(txtBuscaArtista.Text.Trim());
-        }
-
-        private void AtualizarBotaoFavorito()
-        {
-            if (_artistaAtual == null)
+            var artista = _artistaAtual;
+            if (artista == null || _usuarioId <= 0)
             {
                 btnFavorito.Visible = false;
                 return;
             }
 
-            bool ehFavorito = _usuarioId > 0 && ArtistaDAO.EhFavorito(_usuarioId, _artistaAtual.Nome);
+            btnFavorito.Visible = false;
+            bool ehFavorito = await System.Threading.Tasks.Task.Run(
+                () => ArtistaDAO.EhFavorito(_usuarioId, artista.Nome));
+            if (IsDisposed || !_exibindoDetalhe || _artistaAtual != artista)
+                return;
+
             btnFavorito.Text = ehFavorito ? "♥ Desfavoritar" : "♡ Favoritar";
             btnFavorito.BackColor = ehFavorito ? Color.FromArgb(200, 40, 70) : Color.FromArgb(124, 58, 237);
             btnFavorito.ForeColor = Color.White;
-            btnFavorito.Visible = _usuarioId > 0;
+            btnFavorito.Visible = true;
         }
 
         private void BtnFavorito_Click(object sender, EventArgs e)
@@ -592,6 +645,8 @@ using (var ms = new System.IO.MemoryStream(dados))
 
         private async void MostrarFavoritos()
         {
+            MostrarLista();
+            int versao = ++_versaoBusca;
             if (_usuarioId <= 0)
             {
                 MessageBox.Show("Entre no app para ver seus artistas favoritos.",
@@ -600,6 +655,8 @@ using (var ms = new System.IO.MemoryStream(dados))
             }
 
             var favoritos = await System.Threading.Tasks.Task.Run(() => ArtistaDAO.ListarFavoritos(_usuarioId));
+            if (IsDisposed || _exibindoDetalhe || versao != _versaoBusca)
+                return;
 
             _carregando = true;
             _imagens.Images.Clear();
@@ -619,6 +676,8 @@ using (var ms = new System.IO.MemoryStream(dados))
 
             foreach (var artista in favoritos)
             {
+                if (IsDisposed || versao != _versaoBusca)
+                    return;
                 var item = new ListViewItem(artista.Nome)
                 {
                     ImageIndex = -1
@@ -631,10 +690,14 @@ using (var ms = new System.IO.MemoryStream(dados))
                         using (var client = new System.Net.Http.HttpClient())
                         {
                             var dados = await client.GetByteArrayAsync(artista.ImagemUrl);
-using (var ms = new System.IO.MemoryStream(dados))
-                                {
-                                    _imagens.Images.Add(new Bitmap(Image.FromStream(ms)));
-                                }
+                            if (IsDisposed || versao != _versaoBusca)
+                                return;
+                            using (var ms = new System.IO.MemoryStream(dados))
+                            using (var imagem = Image.FromStream(ms))
+                            {
+                                _imagens.Images.Add(CriarMiniaturaArredondada(imagem, _imagens.ImageSize.Width));
+                                item.ImageIndex = _imagens.Images.Count - 1;
+                            }
                         }
                     }
                     catch
@@ -656,10 +719,38 @@ using (var ms = new System.IO.MemoryStream(dados))
             lstArtistas.Items.Add(new ListViewItem(" " + mensagem) { ForeColor = Color.White });
         }
 
+        // O ListView nao usa Region em suas imagens; arredondamos os pixels
+        // antes de colocar a foto quadrada no ImageList.
+        private static Bitmap CriarMiniaturaArredondada(Image imagem, int tamanho)
+        {
+            var miniatura = new Bitmap(tamanho, tamanho);
+            const int raio = 10;
+            int diametro = raio * 2;
+            using (var g = Graphics.FromImage(miniatura))
+            using (var caminho = new GraphicsPath())
+            {
+                caminho.AddArc(0, 0, diametro, diametro, 180, 90);
+                caminho.AddArc(tamanho - diametro - 1, 0, diametro, diametro, 270, 90);
+                caminho.AddArc(tamanho - diametro - 1, tamanho - diametro - 1,
+                    diametro, diametro, 0, 90);
+                caminho.AddArc(0, tamanho - diametro - 1, diametro, diametro, 90, 90);
+                caminho.CloseFigure();
+
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SetClip(caminho);
+                int lado = Math.Min(imagem.Width, imagem.Height);
+                var origem = new Rectangle((imagem.Width - lado) / 2,
+                    (imagem.Height - lado) / 2, lado, lado);
+                g.DrawImage(imagem, new Rectangle(0, 0, tamanho, tamanho),
+                    origem, GraphicsUnit.Pixel);
+            }
+            return miniatura;
+        }
+
         private async void BuscarArtistas(string termo)
         {
-            _exibindoDetalhe = false;
-
+            int versao = ++_versaoBusca;
             if (string.IsNullOrWhiteSpace(termo))
             {
                 AdicionarMensagem("Digite o nome de um artista para buscar.");
@@ -677,6 +768,8 @@ using (var ms = new System.IO.MemoryStream(dados))
             try
             {
                 var artistas = await SpotifyService.BuscarArtistasAsync(termo);
+                if (IsDisposed || versao != _versaoBusca)
+                    return;
                 _resultadosBusca.Clear();
                 _resultadosBusca.AddRange(artistas ?? new List<SpotifyService.Artista>());
 
@@ -693,6 +786,8 @@ using (var ms = new System.IO.MemoryStream(dados))
 
                 foreach (var artista in artistas)
                 {
+                    if (IsDisposed || versao != _versaoBusca)
+                        return;
                     string generos = artista.Generos != null && artista.Generos.Count > 0
                         ? string.Join(", ", artista.Generos.Take(3))
                         : "";
@@ -714,9 +809,12 @@ using (var ms = new System.IO.MemoryStream(dados))
                             using (var client = new System.Net.Http.HttpClient())
                             {
                                 var dados = await client.GetByteArrayAsync(artista.ImagemUrl);
+                                if (IsDisposed || versao != _versaoBusca)
+                                    return;
                                 using (var ms = new System.IO.MemoryStream(dados))
+                                using (var imagem = Image.FromStream(ms))
                                 {
-                                    _imagens.Images.Add(Image.FromStream(ms));
+                                    _imagens.Images.Add(CriarMiniaturaArredondada(imagem, _imagens.ImageSize.Width));
                                     item.ImageIndex = _imagens.Images.Count - 1;
                                 }
                             }
@@ -739,28 +837,13 @@ using (var ms = new System.IO.MemoryStream(dados))
             }
             catch (Exception ex)
             {
+                if (IsDisposed || versao != _versaoBusca)
+                    return;
                 _carregando = false;
                 _imagens.Images.Clear();
                 lstArtistas.Items.Clear();
                 AdicionarMensagem("Erro ao buscar artistas: " + ex.Message);
             }
-        }
-
-        private Bitmap DesenharPlay()
-        {
-            var bmp = new Bitmap(16, 16);
-            using (Graphics g = Graphics.FromImage(bmp))
-            {
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                var pontos = new[]
-                {
-                    new PointF(4.5f, 2.5f),
-                    new PointF(13.5f, 8f),
-                    new PointF(4.5f, 13.5f)
-                };
-                g.FillPolygon(new SolidBrush(Color.White), pontos);
-            }
-            return bmp;
         }
 
         private string FormatarDuracao(int segundos)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -12,11 +13,20 @@ namespace WindowsFormsApp1
         private FlowLayoutPanel flpScroll;
         private Label lblCarregando;
         private Label lblBemVindo;
+        private Panel pnlHero;
+        private FlowLayoutPanel flpArtistas;
+        private FlowLayoutPanel flpAlbuns;
         private bool _carregado;
+        private bool _ajustandoLayout;
+
+        private const int LarguraCard = 190;
+        private const int AlturaCard = 240;
+        private const int EspacoCard = 12;
 
         // Eventos disparados ao clicar num card de artista ou de album.
         public event Action<SpotifyService.Artista> ArtistaSolicitado;
         public event Action<string> AlbumSolicitado;
+        public event Action ExplorarArtistasSolicitado;
 
         public ControleInicio(int usuarioId, string nomeUsuario)
         {
@@ -26,21 +36,72 @@ namespace WindowsFormsApp1
 
         private void Inicializar(string nomeUsuario)
         {
-            BackColor = Color.FromArgb(13, 7, 20);
+            BackColor = Tema.Fundo;
             Font = new Font("Segoe UI", 9F);
 
-            // Saudacao no topo.
+            pnlHero = new Panel
+            {
+                Height = 194,
+                Margin = new Padding(0, 0, 0, 10),
+                BackColor = Tema.FundoElevado
+            };
+            pnlHero.Paint += (s, e) =>
+            {
+                using (var gradiente = new LinearGradientBrush(pnlHero.ClientRectangle,
+                    Tema.Claro ? Color.FromArgb(235, 218, 255) : Color.FromArgb(70, 31, 105),
+                    Tema.Claro ? Color.FromArgb(251, 248, 255) : Color.FromArgb(28, 16, 42),
+                    LinearGradientMode.Horizontal))
+                    e.Graphics.FillRectangle(gradiente, pnlHero.ClientRectangle);
+            };
+
             lblBemVindo = new Label
             {
                 Text = ObterSaudacao() + ", "
                     + (string.IsNullOrWhiteSpace(nomeUsuario) ? "Usuario" : nomeUsuario) + "!",
-                ForeColor = Color.FromArgb(168, 85, 247),
-                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
-                AutoSize = true,
-                Dock = DockStyle.Top,
-                Padding = new Padding(0, 8, 0, 14),
+                ForeColor = Tema.Destaque,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Location = new Point(20, 18),
+                Size = new Size(440, 26),
+                AutoEllipsis = true,
                 BackColor = Color.Transparent
             };
+            pnlHero.Controls.Add(lblBemVindo);
+
+            pnlHero.Controls.Add(new Label
+            {
+                Text = "Sua música, seu momento.",
+                ForeColor = Tema.Texto,
+                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
+                Location = new Point(18, 51),
+                Size = new Size(440, 39),
+                AutoEllipsis = true,
+                BackColor = Color.Transparent
+            });
+            pnlHero.Controls.Add(new Label
+            {
+                Text = "Descubra artistas, explore álbuns e dê o play nos seus favoritos.",
+                ForeColor = Tema.TextoSecundario,
+                Font = new Font("Segoe UI", 9.5F),
+                Location = new Point(20, 99),
+                Size = new Size(440, 37),
+                BackColor = Color.Transparent
+            });
+
+            var btnExplorar = new Button
+            {
+                Text = "Explorar artistas  →",
+                Location = new Point(20, 145),
+                Size = new Size(158, 34),
+                BackColor = Tema.Roxo,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnExplorar.FlatAppearance.BorderSize = 0;
+            Tema.Arredondar(btnExplorar, 14);
+            btnExplorar.Click += (s, e) => ExplorarArtistasSolicitado?.Invoke();
+            pnlHero.Controls.Add(btnExplorar);
 
             // Container rolavel com as secoes de destaque.
             flpScroll = new FlowLayoutPanel
@@ -50,14 +111,15 @@ namespace WindowsFormsApp1
                 WrapContents = false,
                 FlowDirection = FlowDirection.TopDown,
                 BackColor = Color.Transparent,
-                Padding = new Padding(12, 0, 12, 12)
+                Padding = new Padding(16, 14, 16, 16)
             };
+            flpScroll.Controls.Add(pnlHero);
 
             // Mensagem de carregamento.
             lblCarregando = new Label
             {
                 Text = "Carregando destaques...",
-                ForeColor = Color.Silver,
+                ForeColor = Tema.TextoSecundario,
                 Font = new Font("Segoe UI", 10F),
                 AutoSize = true,
                 Padding = new Padding(0, 20, 0, 0)
@@ -66,7 +128,7 @@ namespace WindowsFormsApp1
 
             Controls.Add(flpScroll);
 
-            Resize += (s, e) => ReposicionarSessoes();
+            flpScroll.Resize += (s, e) => ReposicionarSessoes();
         }
 
         public void Atualizar()
@@ -105,21 +167,24 @@ namespace WindowsFormsApp1
 
             flpScroll.SuspendLayout();
             flpScroll.Controls.Clear();
+            flpScroll.Controls.Add(pnlHero);
 
             // Sessao: Artistas em destaque.
             if (artistas != null && artistas.Count > 0)
             {
-                var lblSecArtistas = CriarTituloSecao("Artistas em destaque");
+                var lblSecArtistas = CriarTituloSecao("Artistas em destaque",
+                    "Escolha um artista para ver suas músicas mais populares");
                 flpScroll.Controls.Add(lblSecArtistas);
 
-                var flpArtistas = CriarGradeDestaque();
+                flpArtistas = CriarGradeDestaque();
                 foreach (var artista in artistas)
                 {
                     flpArtistas.Controls.Add(
                         CriarCardDestaque(
                             artista.ImagemUrl,
                             artista.Nome,
-                            null,
+                            "ARTISTA  ·  Ver músicas",
+                            true,
                             (s, e) => ArtistaSolicitado?.Invoke(artista)));
                 }
                 flpScroll.Controls.Add(flpArtistas);
@@ -128,10 +193,11 @@ namespace WindowsFormsApp1
             // Sessao: Albuns em destaque.
             if (albuns != null && albuns.Count > 0)
             {
-                var lblSecAlbuns = CriarTituloSecao("Albuns em destaque");
+                var lblSecAlbuns = CriarTituloSecao("Álbuns em destaque",
+                    "Novos sons para a sua próxima playlist");
                 flpScroll.Controls.Add(lblSecAlbuns);
 
-                var flpAlbuns = CriarGradeDestaque();
+                flpAlbuns = CriarGradeDestaque();
                 foreach (var album in albuns)
                 {
                     flpAlbuns.Controls.Add(
@@ -139,6 +205,7 @@ namespace WindowsFormsApp1
                             album.ImagemUrl,
                             album.Nome,
                             album.Artistas,
+                            false,
                             (s, e) => AlbumSolicitado?.Invoke(
                                 album.Album + " " + album.Artistas)));
                 }
@@ -151,7 +218,7 @@ namespace WindowsFormsApp1
                 flpScroll.Controls.Add(new Label
                 {
                     Text = "Nenhum destaque disponivel no momento.",
-                    ForeColor = Color.Silver,
+                    ForeColor = Tema.TextoSecundario,
                     AutoSize = true,
                     Padding = new Padding(0, 20, 0, 0)
                 });
@@ -162,17 +229,35 @@ namespace WindowsFormsApp1
             Tema.Aplicar(this);
         }
 
-        private static Label CriarTituloSecao(string texto)
+        private static Panel CriarTituloSecao(string titulo, string descricao)
         {
-            return new Label
+            var cabecalho = new Panel
             {
-                Text = texto,
-                ForeColor = Color.FromArgb(168, 85, 247),
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                AutoSize = true,
-                Margin = new Padding(0, 18, 0, 10),
+                Height = 64,
+                Margin = new Padding(0, 12, 0, 6),
                 BackColor = Color.Transparent
             };
+            cabecalho.Controls.Add(new Label
+            {
+                Text = titulo,
+                ForeColor = Tema.Texto,
+                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
+                Location = new Point(0, 2),
+                Size = new Size(430, 32),
+                AutoEllipsis = true,
+                BackColor = Color.Transparent
+            });
+            cabecalho.Controls.Add(new Label
+            {
+                Text = descricao,
+                ForeColor = Tema.TextoSecundario,
+                Font = new Font("Segoe UI", 9F),
+                Location = new Point(1, 37),
+                Size = new Size(430, 20),
+                AutoEllipsis = true,
+                BackColor = Color.Transparent
+            });
+            return cabecalho;
         }
 
         private FlowLayoutPanel CriarGradeDestaque()
@@ -180,8 +265,7 @@ namespace WindowsFormsApp1
             return new FlowLayoutPanel
             {
                 WrapContents = true,
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                AutoSize = false,
                 FlowDirection = FlowDirection.LeftToRight,
                 BackColor = Color.Transparent,
                 Margin = new Padding(0, 0, 0, 4)
@@ -189,28 +273,27 @@ namespace WindowsFormsApp1
         }
 
         private Control CriarCardDestaque(
-            string imagemUrl, string titulo, string subtitulo, EventHandler clique)
+            string imagemUrl, string titulo, string subtitulo, bool artista, EventHandler clique)
         {
             var card = new Panel
             {
-                Width = 190,
-                Height = 240,
-                Margin = new Padding(8),
-                BackColor = Color.FromArgb(28, 16, 42),
-                Padding = new Padding(6),
+                Width = LarguraCard,
+                Height = AlturaCard,
+                Margin = new Padding(0, 0, EspacoCard, EspacoCard),
+                BackColor = Tema.FundoElevado,
                 Cursor = Cursors.Hand
             };
-            Tema.Arredondar(card, 14);
+            Tema.Arredondar(card, 16);
 
             var picCapa = new PictureBox
             {
-                Location = new Point(20, 12),
-                Size = new Size(150, 150),
+                Location = new Point(12, 12),
+                Size = new Size(166, 166),
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.FromArgb(45, 20, 65),
+                BackColor = Tema.FundoCard,
                 Cursor = Cursors.Hand
             };
-            Tema.Arredondar(picCapa, 60);
+            Tema.Arredondar(picCapa, 14);
 
             if (!string.IsNullOrWhiteSpace(imagemUrl))
             {
@@ -220,61 +303,91 @@ namespace WindowsFormsApp1
             var lblTitulo = new Label
             {
                 Text = titulo ?? "",
-                ForeColor = Color.White,
+                ForeColor = Tema.Texto,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                AutoSize = true,
-                MaximumSize = new Size(178, 22),
+                Size = new Size(162, 25),
                 AutoEllipsis = true,
-                Location = new Point(8, 170),
+                Location = new Point(14, 183),
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
 
-            Control btnCtrl = card;
-
             card.Controls.Add(picCapa);
             card.Controls.Add(lblTitulo);
 
-            if (!string.IsNullOrWhiteSpace(subtitulo))
+            var lblSub = new Label
             {
-                var lblSub = new Label
-                {
-                    Text = subtitulo,
-                    ForeColor = Color.Silver,
-                    Font = new Font("Segoe UI", 9.5F),
-                    AutoSize = true,
-                    MaximumSize = new Size(178, 18),
-                    AutoEllipsis = true,
-                    Location = new Point(8, 196),
-                    BackColor = Color.Transparent,
-                    Cursor = Cursors.Hand
-                };
-                card.Controls.Add(lblSub);
-            }
+                Text = subtitulo ?? "",
+                ForeColor = artista ? Tema.Destaque : Tema.TextoSecundario,
+                Font = new Font("Segoe UI", 9F),
+                Size = new Size(162, 19),
+                AutoEllipsis = true,
+                Location = new Point(14, 211),
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+            card.Controls.Add(lblSub);
 
-            // Deixa todo o card clicavel. O clique em qualquer filho ja
-            // borbulha para o card, entao registrar apenas no card evita
-            // disparo duplo do evento.
+            // WinForms nao propaga Click dos filhos ao Panel: assina cada area.
             card.Click += clique;
+            picCapa.Click += clique;
+            lblTitulo.Click += clique;
+            lblSub.Click += clique;
+
+            foreach (Control alvo in new Control[] { card, picCapa, lblTitulo, lblSub })
+            {
+                alvo.MouseEnter += (s, e) => card.BackColor = Tema.FundoCard;
+                alvo.MouseLeave += (s, e) =>
+                {
+                    if (!card.ClientRectangle.Contains(card.PointToClient(Cursor.Position)))
+                        card.BackColor = Tema.FundoElevado;
+                };
+            }
 
             return card;
         }
 
         private void ReposicionarSessoes()
         {
-            // Ajusta a largura dos containers de grade para preencher o flpScroll,
-            // fazendo o wrap de cards reagir ao redimensionar.
-            if (flpScroll == null)
+            if (flpScroll == null || _ajustandoLayout)
                 return;
 
-            int largura = flpScroll.ClientSize.Width - flpScroll.Padding.Horizontal;
-
-            foreach (Control ctrl in flpScroll.Controls)
+            _ajustandoLayout = true;
+            try
             {
-                if (ctrl is FlowLayoutPanel flp && flp.AutoSize)
+                // Reserva a barra vertical para que o scroll nunca fique horizontal.
+                int largura = Math.Max(180, flpScroll.ClientSize.Width
+                    - flpScroll.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - 4);
+                flpScroll.SuspendLayout();
+                foreach (Control ctrl in flpScroll.Controls)
                 {
-                    flp.Width = Math.Max(100, largura);
+                    ctrl.Width = largura;
+                    if (ctrl == flpArtistas || ctrl == flpAlbuns)
+                    {
+                        var grade = (FlowLayoutPanel)ctrl;
+                        int colunas = Math.Max(1, largura / (LarguraCard + EspacoCard));
+                        int linhas = (grade.Controls.Count + colunas - 1) / colunas;
+                        grade.Height = linhas * (AlturaCard + EspacoCard);
+                    }
+                    else if (ctrl is Panel painel)
+                    {
+                        foreach (Control filho in painel.Controls)
+                        {
+                            if (filho is Label)
+                                filho.Width = Math.Max(120, largura - filho.Left - 16);
+                        }
+                        if (painel == pnlHero)
+                            Tema.Arredondar(pnlHero, 18);
+                    }
                 }
+                flpScroll.ResumeLayout(true);
+                // O AutoScroll pode manter a largura anterior apos o Resize;
+                // refaz a medicao para remover a barra horizontal residual.
+                flpScroll.PerformLayout();
+            }
+            finally
+            {
+                _ajustandoLayout = false;
             }
         }
 

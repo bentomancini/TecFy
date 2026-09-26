@@ -206,8 +206,8 @@ namespace WindowsFormsApp1
             "Music of the Spheres Coldplay"
         };
 
-        // Busca artistas em destaque. Usa entity=song (que sempre traz artworkUrl100)
-        // para obter a capa do artista, buscanco uma musica de cada um.
+        // Busca artistas em destaque. Usa entity=song para obter a capa de uma
+        // musica do proprio artista (a iTunes nao retorna foto do artista).
         public static async Task<List<Artista>> BuscarArtistasDestaqueAsync(int limite = 8)
         {
             var tarefas = new List<Task<Artista>>();
@@ -234,7 +234,7 @@ namespace WindowsFormsApp1
             {
                 string url = "https://itunes.apple.com/search?term="
                     + Uri.EscapeDataString(nome)
-                    + "&entity=song&limit=1";
+                    + "&entity=song&attribute=artistTerm&limit=10";
 
                 using (var client = new System.Net.Http.HttpClient())
                 {
@@ -247,7 +247,13 @@ namespace WindowsFormsApp1
                     if (resultados == null || resultados.Count == 0)
                         return null;
 
-                    var item = resultados[0];
+                    var item = resultados.FirstOrDefault(r =>
+                        Normalizar(Convert.ToString(r["artistName"])) == Normalizar(nome))
+                        ?? resultados.FirstOrDefault(r =>
+                            NomeCorresponde(Convert.ToString(r["artistName"]), nome));
+                    if (item == null)
+                        return null;
+
                     string nomeArtista = Convert.ToString(item["artistName"]);
                     if (string.IsNullOrWhiteSpace(nomeArtista))
                         return null;
@@ -255,10 +261,12 @@ namespace WindowsFormsApp1
                     string imagem = item["artworkUrl100"] == null
                         ? null
                         : Convert.ToString(item["artworkUrl100"]);
+                    if (!string.IsNullOrEmpty(imagem))
+                        imagem = imagem.Replace("100x100bb", "400x400bb");
 
                     return new Artista
                     {
-                        Nome = nomeArtista,
+                        Nome = Normalizar(nomeArtista) == Normalizar(nome) ? nomeArtista : nome,
                         ImagemUrl = imagem ?? ""
                     };
                 }
@@ -323,6 +331,8 @@ namespace WindowsFormsApp1
                     string imagem = item["artworkUrl100"] == null
                         ? null
                         : Convert.ToString(item["artworkUrl100"]);
+                    if (!string.IsNullOrEmpty(imagem))
+                        imagem = imagem.Replace("100x100bb", "400x400bb");
 
                     return new Faixa
                     {
@@ -441,22 +451,13 @@ namespace WindowsFormsApp1
             // 2. Um contem o outro (inteiro).
             if (nome.IndexOf(termo, StringComparison.Ordinal) >= 0)
                 return true;
-            if (termo.IndexOf(nome, StringComparison.Ordinal) >= 0)
-                return true;
-
-            // 3. Compartilham ao menos uma palavra significativa.
+            // 3. Em nomes compostos, todas as palavras distintivas precisam
+            // aparecer (ex.: Henrique & Juliano nao e Henrique & Diego).
             var partesNome = nome.Split(new[] { ' ', ',', '&', '-' }, StringSplitOptions.RemoveEmptyEntries);
             var partesTermo = termo.Split(new[] { ' ', ',', '&', '-' }, StringSplitOptions.RemoveEmptyEntries);
 
-            foreach (var palavra in partesNome)
-            {
-                if (palavra.Length < 3)
-                    continue;
-                if (partesTermo.Contains(palavra))
-                    return true;
-            }
-
-            return false;
+            var distintivas = partesTermo.Where(p => p.Length >= 4).ToList();
+            return distintivas.Count > 0 && distintivas.All(partesNome.Contains);
         }
 
         // Busca as principais musicas de um artista na iTunes Search API.
@@ -465,6 +466,7 @@ namespace WindowsFormsApp1
         public static async Task<List<Faixa>> BuscarTopMusicasArtistaAsync(string artista, int limite = 5)
         {
             var faixas = new List<Faixa>();
+            var nomesEncontrados = new HashSet<string>();
 
             try
             {
@@ -473,7 +475,7 @@ namespace WindowsFormsApp1
 
                 string url = "https://itunes.apple.com/search?term="
                     + Uri.EscapeDataString(artista)
-                    + "&entity=song&limit=" + (limite * 4);
+                    + "&entity=song&attribute=artistTerm&limit=" + (limite * 4);
 
                 using (var client = new System.Net.Http.HttpClient())
                 {
@@ -493,6 +495,8 @@ namespace WindowsFormsApp1
                         if (string.IsNullOrWhiteSpace(nome))
                             continue;
                         if (!NomeCorresponde(nomeArtista, artista))
+                            continue;
+                        if (!nomesEncontrados.Add(Normalizar(nome)))
                             continue;
 
                         string preview = Convert.ToString(item["previewUrl"]);

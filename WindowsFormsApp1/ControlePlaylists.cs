@@ -355,7 +355,7 @@ namespace WindowsFormsApp1
         {
             var linha = new Panel
             {
-                Size = new Size(440, 58),
+                Size = new Size(440, 70),
                 Margin = new Padding(2),
                 Tag = faixa
             };
@@ -364,13 +364,13 @@ namespace WindowsFormsApp1
 
             var picCapa = new PictureBox
             {
-                Size = new Size(48, 48),
-                Location = new Point(2, 5),
+                Size = new Size(58, 58),
+                Location = new Point(2, 6),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 BackColor = Color.FromArgb(45, 20, 65),
                 Tag = faixa
             };
-            Tema.Arredondar(picCapa, 24);
+            Tema.Arredondar(picCapa, 10);
             if (!string.IsNullOrWhiteSpace(faixa.ImagemUrl))
             {
                 try { picCapa.LoadAsync(faixa.ImagemUrl); } catch { }
@@ -380,7 +380,7 @@ namespace WindowsFormsApp1
             {
                 Text = "▶",
                 Size = new Size(42, 42),
-                Location = new Point(60, 8),
+                Location = new Point(68, 14),
                 BackColor = Color.FromArgb(124, 58, 237),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -396,9 +396,9 @@ namespace WindowsFormsApp1
                 Text = faixa.Nome + "  -  " + faixa.Artistas,
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(112, 18),
+                Location = new Point(120, 22),
                 Font = new Font("Segoe UI", 13F),
-                MaximumSize = new Size(250, 26)
+                MaximumSize = new Size(220, 26)
             };
 
             var lblDur = new Label
@@ -408,7 +408,7 @@ namespace WindowsFormsApp1
                     : "",
                 ForeColor = Color.Gray,
                 AutoSize = true,
-                Location = new Point(350, 20),
+                Location = new Point(346, 25),
                 Font = new Font("Segoe UI", 11F)
             };
 
@@ -416,7 +416,7 @@ namespace WindowsFormsApp1
             {
                 Text = "✕",
                 Size = new Size(42, 42),
-                Location = new Point(390, 8),
+                Location = new Point(390, 14),
                 BackColor = Color.FromArgb(45, 20, 65),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),

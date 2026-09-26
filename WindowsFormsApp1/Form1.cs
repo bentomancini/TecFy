@@ -8,6 +8,13 @@ namespace WindowsFormsApp1
     {
         private PictureBox _btnOlho;
         private Label _lblUltimoLogin;
+        private Panel _pnlLogin;
+        private Label _lblMarca;
+        private Label _lblTituloLogin;
+        private Label _lblDescricaoLogin;
+        private Label _lblCampoEmail;
+        private Label _lblCampoSenha;
+        private Label _lblSlogan;
 
         private static readonly string CaminhoLembrar =
             System.IO.Path.Combine(Application.StartupPath, "lembrar_login.txt");
@@ -18,6 +25,7 @@ namespace WindowsFormsApp1
         public Form1()
         {
             InitializeComponent();
+            ConfigurarVisualLogin();
             btnEntrar.Click += btnEntrar_Click;
             llabelCriar.LinkClicked += llabelCriar_LinkClicked;
             llabelEsqueceu.LinkClicked += llabelEsqueceu_LinkClicked;
@@ -25,6 +33,94 @@ namespace WindowsFormsApp1
             CriarTextoUltimoLogin();
             AcceptButton = btnEntrar;
             Resize += (s, e) => ReposicionarResponsivo();
+        }
+
+        private void ConfigurarVisualLogin()
+        {
+            Text = "Tecfy - Entrar";
+            MinimumSize = new Size(758, 489);
+            BackgroundImage = null;
+            BackColor = Tema.Fundo;
+
+            // O WebView antigo exibia apenas um texto decorativo; o formulario
+            // nativo permanece responsavel pelo login e pela autenticacao.
+            webView21.Visible = false;
+            webView21.TabStop = false;
+
+            Color fundoCard = Tema.FundoElevado;
+            _pnlLogin = new Panel
+            {
+                BackColor = fundoCard,
+                Location = new Point(70, 52),
+                Size = new Size(270, 347)
+            };
+            _pnlLogin.Paint += (s, e) =>
+            {
+                using (var borda = new Pen(Color.FromArgb(74, 46, 99)))
+                    e.Graphics.DrawRectangle(borda, 0, 0, _pnlLogin.Width - 1, _pnlLogin.Height - 1);
+            };
+            Controls.Add(_pnlLogin);
+            _pnlLogin.SendToBack();
+            Tema.Arredondar(_pnlLogin, 20);
+
+            _lblMarca = CriarLabelLogin("BEM-VINDO AO TECFY", 99, 70, 210, 19,
+                8.5F, FontStyle.Bold, Tema.Destaque, fundoCard);
+            _lblTituloLogin = CriarLabelLogin("Entre na sua conta", 99, 98, 218, 32,
+                15.5F, FontStyle.Bold, Tema.Texto, fundoCard);
+            _lblDescricaoLogin = CriarLabelLogin("Seu próximo som começa aqui.", 99, 134, 216, 25,
+                9F, FontStyle.Regular, Tema.TextoSecundario, fundoCard);
+            _lblCampoEmail = CriarLabelLogin("E-MAIL", 99, 166, 210, 18,
+                8F, FontStyle.Bold, Tema.TextoSecundario, fundoCard);
+            _lblCampoSenha = CriarLabelLogin("SENHA", 99, 226, 210, 18,
+                8F, FontStyle.Bold, Tema.TextoSecundario, fundoCard);
+            _lblSlogan = CriarLabelLogin("Música para cada momento.", 403, 340, 300, 28,
+                12F, FontStyle.Bold, Tema.Texto, Tema.Fundo);
+            _lblSlogan.TextAlign = ContentAlignment.MiddleCenter;
+
+            txtEmail.BackColor = fundoCard;
+            txtSenha.BackColor = fundoCard;
+            txtEmail.FillColor = Color.FromArgb(16, 9, 28);
+            txtSenha.FillColor = Color.FromArgb(16, 9, 28);
+            txtEmail.BorderColor = Color.FromArgb(79, 54, 107);
+            txtSenha.BorderColor = Color.FromArgb(79, 54, 107);
+            txtEmail.FocusedState.BorderColor = Tema.Destaque;
+            txtSenha.FocusedState.BorderColor = Tema.Destaque;
+            txtEmail.HoverState.BorderColor = Tema.Destaque;
+            txtSenha.HoverState.BorderColor = Tema.Destaque;
+            txtEmail.PlaceholderForeColor = Tema.TextoSecundario;
+            txtSenha.PlaceholderForeColor = Tema.TextoSecundario;
+            txtEmail.PlaceholderText = "seuemail@gmail.com";
+            txtSenha.PlaceholderText = "Digite sua senha";
+            txtEmail.BorderRadius = 12;
+            txtSenha.BorderRadius = 12;
+            cboxLembrar.BackColor = fundoCard;
+            cboxLembrar.ForeColor = Tema.TextoSecundario;
+            llabelEsqueceu.BackColor = fundoCard;
+            label1.BackColor = fundoCard;
+            label1.ForeColor = Tema.TextoSecundario;
+            llabelCriar.BackColor = fundoCard;
+            btnEntrar.BackColor = fundoCard;
+            btnEntrar.FillColor = Tema.Roxo;
+            btnEntrar.HoverState.FillColor = Tema.Destaque;
+            btnEntrar.Cursor = Cursors.Hand;
+        }
+
+        private Label CriarLabelLogin(string texto, int x, int y, int largura, int altura,
+            float tamanho, FontStyle estilo, Color cor, Color fundo)
+        {
+            var label = new Label
+            {
+                Text = texto,
+                Location = new Point(x, y),
+                Size = new Size(largura, altura),
+                Font = new Font("Segoe UI", tamanho, estilo),
+                ForeColor = cor,
+                BackColor = fundo,
+                AutoEllipsis = true
+            };
+            Controls.Add(label);
+            label.BringToFront();
+            return label;
         }
 
         private void ConfigurarOlhoSenha()
@@ -35,7 +131,7 @@ namespace WindowsFormsApp1
             {
                 Size = new Size(24, 24),
                 Cursor = Cursors.Hand,
-                BackColor = Color.FromArgb(13, 7, 20),
+                BackColor = Color.FromArgb(16, 9, 28),
                 Image = DesenharOlho(false),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 Location = new Point(
@@ -137,24 +233,31 @@ namespace WindowsFormsApp1
 
             const int baseW = 742, baseH = 450;
             double esc = Math.Min(w / (double)baseW, h / (double)baseH);
-            esc = Math.Max(0.8, Math.Min(esc, 2.2));
+            esc = Math.Max(1.0, Math.Min(esc, 1.3));
 
             int offX = (w - (int)(baseW * esc)) / 2;
             int offY = (h - (int)(baseH * esc)) / 2;
 
-            Mover(webView21, 12, 25, 372, 156, esc, offX, offY);
-            Mover(txtEmail, 99, 187, 200, 36, esc, offX, offY);
-            Mover(txtSenha, 99, 246, 200, 36, esc, offX, offY);
-            MoverPos(cboxLembrar, 99, 288, esc, offX, offY);
-            MoverPos(llabelEsqueceu, 205, 289, esc, offX, offY);
-            Mover(btnEntrar, 99, 329, 198, 39, esc, offX, offY);
-            MoverPos(label1, 96, 371, esc, offX, offY);
-            MoverPos(llabelCriar, 236, 371, esc, offX, offY);
+            Mover(_pnlLogin, 70, 52, 270, 347, esc, offX, offY);
+            Tema.Arredondar(_pnlLogin, 20);
+            Mover(_lblMarca, 99, 70, 210, 19, esc, offX, offY);
+            Mover(_lblTituloLogin, 99, 98, 218, 32, esc, offX, offY);
+            Mover(_lblDescricaoLogin, 99, 134, 216, 25, esc, offX, offY);
+            Mover(_lblCampoEmail, 99, 166, 210, 18, esc, offX, offY);
+            Mover(_lblCampoSenha, 99, 226, 210, 18, esc, offX, offY);
+            Mover(txtEmail, 99, 186, 212, 38, esc, offX, offY);
+            Mover(txtSenha, 99, 246, 212, 38, esc, offX, offY);
+            MoverPos(cboxLembrar, 99, 292, esc, offX, offY);
+            MoverPos(llabelEsqueceu, 205, 293, esc, offX, offY);
+            Mover(btnEntrar, 99, 326, 212, 40, esc, offX, offY);
+            MoverPos(label1, 99, 376, esc, offX, offY);
+            MoverPos(llabelCriar, 239, 376, esc, offX, offY);
             Mover(guna2CirclePictureBox1, 390, 128, 319, 209, esc, offX, offY);
+            Mover(_lblSlogan, 403, 340, 300, 28, esc, offX, offY);
 
             if (_btnOlho != null)
-                MoverPos(_btnOlho, txtSenha.Right - txtSenha.Height + 4,
-                    txtSenha.Top + (txtSenha.Height - 24) / 2, esc, offX, offY);
+                _btnOlho.Location = new Point(txtSenha.Right - txtSenha.Height + 4,
+                    txtSenha.Top + (txtSenha.Height - _btnOlho.Height) / 2);
 
             if (_lblUltimoLogin != null)
                 _lblUltimoLogin.Location = new Point(
@@ -259,23 +362,11 @@ namespace WindowsFormsApp1
                 form.ShowDialog(this);
         }
 
-        private async void Form1_Load(object sender, EventArgs e)
+        private void Form1_Load(object sender, EventArgs e)
         {
             CarregarLembrar();
             AtualizarTextoUltimoLogin();
             ReposicionarResponsivo();
-
-            try
-            {
-                await webView21.EnsureCoreWebView2Async();
-                string caminho = System.IO.Path.Combine(
-                    Application.StartupPath, "assets", "index.html");
-                webView21.Source = new Uri(caminho);
-            }
-            catch
-            {
-                webView21.Visible = false;
-            }
         }
 
         private void webView21_Click_1(object sender, EventArgs e) { }

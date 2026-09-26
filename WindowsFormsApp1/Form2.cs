@@ -18,9 +18,14 @@ namespace WindowsFormsApp1
         private System.Windows.Forms.FlowLayoutPanel pnlResultados;
         private System.Windows.Forms.Timer _timerBusca;
         private string _ultimaBusca = "";
+        private string _textoBuscaMusicas = "";
+        private string _textoBuscaArtistas = "";
+        private bool _campoBuscaArtistas;
+        private bool _trocandoContextoBusca;
         private List<SpotifyService.Faixa> _faixasAtuais = new List<SpotifyService.Faixa>();
         private HashSet<int> _idsFavoritos = new HashSet<int>();
         private List<System.Windows.Forms.Panel> _cards = new List<System.Windows.Forms.Panel>();
+        private bool _ajustandoCards;
         private ControleInicio _ctlInicio;
         private ControlePlaylists _ctlPlaylists;
         private ControleArtistas _ctlArtistas;
@@ -69,6 +74,8 @@ namespace WindowsFormsApp1
             _usuarioId = usuarioId;
             _nomeUsuario = nomeUsuario;
 
+            ConfigurarVisualPrincipal();
+
             CriarPlayer();
             CriarPainelResultados();
             CriarBarraPlayer();
@@ -97,6 +104,60 @@ namespace WindowsFormsApp1
                 guna2PictureBox19.Click += btnFavoritas_Click;
                 guna2PictureBox19.BringToFront();
             }
+        }
+
+        private void ConfigurarVisualPrincipal()
+        {
+            Text = "Tecfy - Sua música";
+            BackgroundImage = null;
+            BackColor = Tema.Fundo;
+
+            guna2Panel5.FillColor = Tema.FundoPainel;
+            guna2Panel5.BorderRadius = 0;
+            guna2Panel5.BorderColor = Color.FromArgb(55, 36, 73);
+            guna2Panel5.BorderThickness = 1;
+            label5.Text = "SUA BIBLIOTECA";
+            label5.ForeColor = Tema.TextoSecundario;
+            label5.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+
+            txtBusca.Location = new Point(190, 83);
+            txtBusca.Size = new Size(ClientSize.Width - 220, 40);
+            txtBusca.BorderRadius = 18;
+            txtBusca.BorderColor = Color.FromArgb(77, 55, 104);
+            txtBusca.FocusedState.BorderColor = Tema.Destaque;
+            txtBusca.HoverState.BorderColor = Tema.Destaque;
+            txtBusca.FillColor = Tema.FundoElevado;
+            txtBusca.ForeColor = Tema.Texto;
+            txtBusca.PlaceholderForeColor = Tema.TextoSecundario;
+            txtBusca.PlaceholderText = "Buscar músicas...";
+            txtBusca.Font = new Font("Segoe UI", 10F);
+            guna2PictureBox21.Image = DesenharLupa();
+            guna2PictureBox21.BackColor = Tema.FundoElevado;
+
+            // A saudacao completa ja esta na home; o topo mostra so o perfil.
+            label3.Visible = false;
+            label4.Visible = false;
+            guna2PictureBox7.Visible = false;
+            lblBomdia.AutoSize = false;
+            lblBomdia.Size = new Size(260, 30);
+            lblBomdia.Location = new Point(ClientSize.Width - 340, 26);
+            lblBomdia.TextAlign = ContentAlignment.MiddleRight;
+            lblBomdia.AutoEllipsis = true;
+            lblBomdia.ForeColor = Tema.Texto;
+            lblBomdia.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+        }
+
+        private static Bitmap DesenharLupa()
+        {
+            var imagem = new Bitmap(24, 24);
+            using (var g = Graphics.FromImage(imagem))
+            using (var caneta = new Pen(Tema.Destaque, 2.4F))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.DrawEllipse(caneta, 3, 3, 13, 13);
+                g.DrawLine(caneta, 15, 15, 21, 21);
+            }
+            return imagem;
         }
 
         // Organiza o layout para que a janela redimensione sem sobrepor:
@@ -143,7 +204,7 @@ namespace WindowsFormsApp1
             if (trkProgresso != null)
                 trkProgresso.Anchor = AnchorStyles.Top | AnchorStyles.Left;
             if (lblTempo != null)
-                lblTempo.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                lblTempo.Anchor = AnchorStyles.Top | AnchorStyles.Left;
 
             // Evita o "flicker" (tremido) ao redimensionar a janela.
             ReduzirFlicker();
@@ -321,6 +382,7 @@ namespace WindowsFormsApp1
                 Tag = id,
                 Cursor = System.Windows.Forms.Cursors.Hand
             };
+            Tema.Arredondar(picCapa, 10);
 
             if (!string.IsNullOrWhiteSpace(capaUrl))
             {
@@ -409,7 +471,7 @@ namespace WindowsFormsApp1
         // Reposiciona/redimensiona a area de conteudo (aba ativa) conforme a janela.
         private void RedimensionarAreaConteudo()
         {
-            const int x = 243;      // apos a sidebar (151) + margem
+            const int x = 190;      // apos a sidebar (151) + margem
             const int y = 150;      // abaixo da busca
             const int margem = 10;  // distancia ate a borda direita/inferior
 
@@ -435,20 +497,24 @@ namespace WindowsFormsApp1
 
         private void btnInicio_Click(object sender, EventArgs e)
         {
+            _timerBusca.Stop();
             RedimensionarAreaConteudo();
             MostrarAbaInicio();
         }
 
         private void btnPlaylists_Click(object sender, EventArgs e)
         {
+            _timerBusca.Stop();
             RedimensionarAreaConteudo();
             MostrarAbaPlaylists();
         }
 
         private void btnArtistas_Click(object sender, EventArgs e)
         {
+            _timerBusca.Stop();
             RedimensionarAreaConteudo();
             MostrarAbaArtistas();
+            _ctlArtistas.ExibirLista();
         }
 
         // Marca visualmente a aba ativa e "apaga" as demais, com uma transicao
@@ -459,6 +525,33 @@ namespace WindowsFormsApp1
             MarcarAbaAtiva(btnInicio, AbaInicioAtiva);
             MarcarAbaAtiva(btnArtistas, AbaArtistasAtiva);
             MarcarAbaAtiva(btnPlaylists, AbaPlaylistsAtiva);
+            AtualizarContextoBusca();
+        }
+
+        private void AtualizarContextoBusca()
+        {
+            if (_campoBuscaArtistas != AbaArtistasAtiva)
+            {
+                _timerBusca.Stop();
+                if (_campoBuscaArtistas)
+                    _textoBuscaArtistas = txtBusca.Text;
+                else
+                    _textoBuscaMusicas = txtBusca.Text;
+
+                _campoBuscaArtistas = AbaArtistasAtiva;
+                _trocandoContextoBusca = true;
+                try
+                {
+                    txtBusca.Text = _campoBuscaArtistas ? _textoBuscaArtistas : _textoBuscaMusicas;
+                }
+                finally
+                {
+                    _trocandoContextoBusca = false;
+                }
+            }
+
+            txtBusca.PlaceholderText = _campoBuscaArtistas
+                ? "Buscar artistas..." : "Buscar músicas...";
         }
 
         private bool AbaInicioAtiva = true;
@@ -627,6 +720,11 @@ private void AnimarEntradaAba(Control aba)
                 MostrarAbaArtistas();
                 _ctlArtistas.ExibirArtista(art);
             };
+            _ctlInicio.ExplorarArtistasSolicitado += () =>
+            {
+                MostrarAbaArtistas();
+                _ctlArtistas.ExibirLista();
+            };
             _ctlInicio.AlbumSolicitado += OnAlbumDestaqueSolicitado;
 
             Controls.Add(_ctlInicio);
@@ -692,12 +790,33 @@ private void AnimarEntradaAba(Control aba)
 
         private void RedimensionarCards()
         {
-            int largura = pnlResultados.ClientSize.Width - pnlResultados.Padding.Horizontal - 2;
-            foreach (var card in _cards)
+            if (pnlResultados == null || _ajustandoCards)
+                return;
+
+            _ajustandoCards = true;
+            try
             {
-                if (card.Width != largura)
-                    card.Width = largura;
+                int largura = LarguraCardResultados();
+                pnlResultados.SuspendLayout();
+                foreach (var card in _cards)
+                {
+                    if (card.Width != largura)
+                        card.Width = largura;
+                }
+                pnlResultados.ResumeLayout(true);
+                pnlResultados.PerformLayout();
             }
+            finally
+            {
+                _ajustandoCards = false;
+            }
+        }
+
+        private int LarguraCardResultados()
+        {
+            // Deixa espaco para a barra vertical e para a margem do card.
+            return Math.Max(260, pnlResultados.ClientSize.Width
+                - pnlResultados.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - 8);
         }
 
         private void CriarBotoesNavegacao()
@@ -705,8 +824,8 @@ private void AnimarEntradaAba(Control aba)
             // Botoes circulares de voltar/avancar no topo da area de conteudo,
             // como no Spotify. Usam pilhas para andar para tras e para frente
             // entre as abas visitadas (inicio, playlists, artistas e busca).
-            btnVoltar = CriarBotaoNavegacao("<", 243, BtnVoltar_Click);
-            btnDesfazer = CriarBotaoNavegacao(">", 283, BtnDesfazer_Click);
+            btnVoltar = CriarBotaoNavegacao("‹", 190, BtnVoltar_Click);
+            btnDesfazer = CriarBotaoNavegacao("›", 230, BtnDesfazer_Click);
 
             Controls.Add(btnVoltar);
             Controls.Add(btnDesfazer);
@@ -815,9 +934,14 @@ private void AnimarEntradaAba(Control aba)
             {
                 Dock = System.Windows.Forms.DockStyle.Bottom,
                 Height = 80,
-                BackColor = System.Drawing.Color.FromArgb(28, 16, 42)
+                BackColor = Tema.FundoPainel
             };
             _barraPlayer = barra;
+            barra.Paint += (s, e) =>
+            {
+                using (var borda = new Pen(Color.FromArgb(65, 44, 84)))
+                    e.Graphics.DrawLine(borda, 0, 0, barra.Width, 0);
+            };
 
             trkProgresso = new System.Windows.Forms.TrackBar
             {
@@ -832,21 +956,23 @@ private void AnimarEntradaAba(Control aba)
             lblTempo = new System.Windows.Forms.Label
             {
                 Text = "0:00 / 0:00",
-                ForeColor = System.Drawing.Color.Silver,
+                ForeColor = Tema.TextoSecundario,
                 Font = new System.Drawing.Font("Segoe UI", 8.25F),
                 Location = new System.Drawing.Point(790, 14),
-                AutoSize = true
+                Size = new Size(82, 22),
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             // Capa da faixa em reproducao.
             picCapa = new System.Windows.Forms.PictureBox
             {
-                Location = new System.Drawing.Point(170, 5),
-                Size = new System.Drawing.Size(70, 70),
+                Location = new System.Drawing.Point(170, 4),
+                Size = new System.Drawing.Size(72, 72),
                 SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
                 BackColor = System.Drawing.Color.FromArgb(45, 20, 65),
                 Image = DesenharCapaVazia()
             };
+            Tema.Arredondar(picCapa, 11);
 
             // Animacao de equalizador ao lado do nome da musica (visivel
             // somente enquanto uma faixa esta sendo reproduzida).
@@ -882,7 +1008,7 @@ private void AnimarEntradaAba(Control aba)
 
             btnPlayPause = new System.Windows.Forms.Button
             {
-                Text = "▶ Pausar",
+                Text = "▶",
                 Location = new System.Drawing.Point(8, 20),
                 Size = new System.Drawing.Size(90, 28),
                 BackColor = System.Drawing.Color.FromArgb(124, 58, 237),
@@ -923,6 +1049,18 @@ private void AnimarEntradaAba(Control aba)
             barra.Controls.Add(_eq);
             Controls.Add(barra);
             barra.BringToFront();
+            barra.Resize += (s, e) => AjustarBarraPlayer();
+            AjustarBarraPlayer();
+        }
+
+        private void AjustarBarraPlayer()
+        {
+            if (_barraPlayer == null || trkProgresso == null || lblTempo == null)
+                return;
+
+            int inicio = trkProgresso.Left;
+            trkProgresso.Width = Math.Max(100, _barraPlayer.ClientSize.Width - inicio - 100);
+            lblTempo.Left = trkProgresso.Right + 8;
         }
 
         // Mostra/esconde e anima o equalizador conforme o estado do player.
@@ -977,8 +1115,8 @@ private void AnimarEntradaAba(Control aba)
         {
             var card = new System.Windows.Forms.Panel
             {
-                Width = pnlResultados.ClientSize.Width - pnlResultados.Padding.Horizontal - 2,
-                Height = 84,
+                Width = LarguraCardResultados(),
+                Height = 94,
                 Margin = new System.Windows.Forms.Padding(3),
                 BackColor = System.Drawing.Color.FromArgb(28, 16, 42),
                 Padding = new System.Windows.Forms.Padding(6)
@@ -987,12 +1125,12 @@ private void AnimarEntradaAba(Control aba)
 
             var picCapa = new System.Windows.Forms.PictureBox
             {
-                Location = new System.Drawing.Point(6, 6),
-                Size = new System.Drawing.Size(72, 72),
+                Location = new System.Drawing.Point(6, 5),
+                Size = new System.Drawing.Size(84, 84),
                 SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
                 BackColor = System.Drawing.Color.FromArgb(13, 7, 20)
             };
-            Tema.Arredondar(picCapa, 36);
+            Tema.Arredondar(picCapa, 12);
 
             if (!string.IsNullOrWhiteSpace(faixa.ImagemUrl))
             {
@@ -1005,7 +1143,7 @@ private void AnimarEntradaAba(Control aba)
                 Text = faixa.Nome,
                 ForeColor = System.Drawing.Color.White,
                 Font = new System.Drawing.Font("Segoe UI", 10.5F, System.Drawing.FontStyle.Bold),
-                Location = new System.Drawing.Point(86, 12),
+                Location = new System.Drawing.Point(100, 16),
                 AutoSize = true,
                 MaximumSize = new System.Drawing.Size(220, 60),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left
@@ -1017,7 +1155,7 @@ private void AnimarEntradaAba(Control aba)
                 Text = faixa.Artistas,
                 ForeColor = System.Drawing.Color.Silver,
                 Font = new System.Drawing.Font("Segoe UI", 9F),
-                Location = new System.Drawing.Point(86, 38),
+                Location = new System.Drawing.Point(100, 47),
                 AutoSize = true,
                 MaximumSize = new System.Drawing.Size(220, 30),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left
@@ -1089,10 +1227,10 @@ private void AnimarEntradaAba(Control aba)
 
             // Posiciona os botoes relativos ao card (na borda direita) e
             // a duracao a esquerda do botao play.
-            btnAddPlaylist.Location = new System.Drawing.Point(card.Width - margemDireita - 43, 25);
-            btnFav.Location = new System.Drawing.Point(btnAddPlaylist.Left - 40 - 2, 25);
-            btnPlay.Location = new System.Drawing.Point(btnFav.Left - 34 - 2, 25);
-            lblDuracao.Location = new System.Drawing.Point(btnPlay.Left - 42 - 6, 30);
+            btnAddPlaylist.Location = new System.Drawing.Point(card.Width - margemDireita - 43, 30);
+            btnFav.Location = new System.Drawing.Point(btnAddPlaylist.Left - 40 - 2, 30);
+            btnPlay.Location = new System.Drawing.Point(btnFav.Left - 34 - 2, 30);
+            lblDuracao.Location = new System.Drawing.Point(btnPlay.Left - 42 - 6, 36);
 
             card.Controls.Add(picCapa);
             card.Controls.Add(lblNome);
@@ -1114,10 +1252,10 @@ private void AnimarEntradaAba(Control aba)
             System.Windows.Forms.Control btnAddPlaylist)
         {
             const int margemDireita = 3;
-            btnAddPlaylist.Location = new System.Drawing.Point(card.Width - margemDireita - btnAddPlaylist.Width, 25);
-            btnFav.Location = new System.Drawing.Point(btnAddPlaylist.Left - btnFav.Width - 2, 25);
-            btnPlay.Location = new System.Drawing.Point(btnFav.Left - btnPlay.Width - 2, 25);
-            lblDuracao.Location = new System.Drawing.Point(btnPlay.Left - lblDuracao.Width - 6, 30);
+            btnAddPlaylist.Location = new System.Drawing.Point(card.Width - margemDireita - btnAddPlaylist.Width, 30);
+            btnFav.Location = new System.Drawing.Point(btnAddPlaylist.Left - btnFav.Width - 2, 30);
+            btnPlay.Location = new System.Drawing.Point(btnFav.Left - btnPlay.Width - 2, 30);
+            lblDuracao.Location = new System.Drawing.Point(btnPlay.Left - lblDuracao.Width - 6, 36);
         }
 
         private void BtnPlay_Click(object sender, EventArgs e)
@@ -1849,6 +1987,8 @@ private void AnimarEntradaAba(Control aba)
 
         private void guna2TextBox1_TextChanged(object sender, EventArgs e)
         {
+            if (_trocandoContextoBusca)
+                return;
             _timerBusca.Stop();
             _timerBusca.Start();
         }
@@ -1881,10 +2021,16 @@ private void AnimarEntradaAba(Control aba)
 
             string termo = txtBusca.Text.Trim();
 
+            if (AbaArtistasAtiva)
+            {
+                _ctlArtistas.Pesquisar(termo);
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(termo))
             {
                 pnlResultados.Controls.Clear();
-            _cards.Clear();
+                _cards.Clear();
                 _ultimaBusca = "";
                 return;
             }
@@ -1946,12 +2092,13 @@ private void AnimarEntradaAba(Control aba)
                     CriarCard(faixa);
                 }
 
+                RedimensionarCards();
                 Tema.Aplicar(pnlResultados);
             }
             catch (Exception ex)
             {
                 pnlResultados.Controls.Clear();
-            _cards.Clear();
+                _cards.Clear();
                 AdicionarAviso("Erro ao buscar: " + ex.Message);
             }
         }
@@ -1969,6 +2116,7 @@ private void AnimarEntradaAba(Control aba)
                 {
                     CriarCard(faixa);
                 }
+                RedimensionarCards();
                 Tema.Aplicar(pnlResultados);
             }
         }
@@ -1983,7 +2131,7 @@ private void AnimarEntradaAba(Control aba)
         {
             if (btnFavoritas == null)
                 return;
-            btnFavoritas.Text = "       Suas Favoritas (" + _idsFavoritos.Count + ")";
+            btnFavoritas.Text = "Favoritas (" + _idsFavoritos.Count + ")";
         }
 
         private async void ExibirFavoritas()
@@ -2020,6 +2168,7 @@ private void AnimarEntradaAba(Control aba)
                 CriarCard(faixa);
             }
 
+            RedimensionarCards();
             AtualizarContadorFavoritas();
             Tema.Aplicar(pnlResultados);
         }
@@ -2031,8 +2180,8 @@ private void AnimarEntradaAba(Control aba)
             // Avatar circular roxo (60×60) posicionado à esquerda da saudação.
             _picAvatar = new Guna.UI2.WinForms.Guna2CirclePictureBox
             {
-                Size = new Size(60, 60),
-                Location = new Point(556, 20),
+                Size = new Size(46, 46),
+                Location = new Point(ClientSize.Width - 70, 18),
                 FillColor = Color.FromArgb(124, 58, 237),
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand,
